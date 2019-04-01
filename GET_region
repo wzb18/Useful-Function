@@ -1,0 +1,36 @@
+library(rvest)
+library(data.table)
+library(dplyr)
+library(stringr)
+library(jsonlite)
+
+key = "your amap key"
+keyword = "静安新城10区"
+test <- paste0('https://restapi.amap.com/v3/place/text?key=', key,'&keywords=',keyword,
+               '&city=上海', '&citylimit=T','&children=0&offset=25&page=1') 
+## check district
+aa1 <- read_html(test) %>% html_text() %>% fromJSON() %>% .$pois
+id_get <- aa1$id[1]
+id_region_url <- paste0('https://ditu.amap.com/detail/get/detail?id=', id_get)
+id_region <- read_html(id_region_url) %>% html_text() %>% fromJSON()
+id_region_shape <- id_region$data$spec$mining_shape$shape
+id_region_shape <- data.frame(matrix(unlist(str_split(id_region_shape, ",|;")), ncol = 2, byrow = T))
+id_region_shape$X1 <- as.numeric(as.character(id_region_shape$X1))
+id_region_shape$X2 <- as.numeric(as.character(id_region_shape$X2))
+
+source("coordinates_transform.R")
+dat_latlon <- select(id_region_shape, lng = X1, lat = X2)
+point_bd <- unlist(apply(dat_latlon, 1, function(x){gcj02_to_bd09(x[1], x[2])}))
+point_bd <- matrix(point_bd, ncol = 2, byrow = T) 
+
+
+id_region_shape$count <- 50
+id_region_shape$lng <- point_bd[,1]
+id_region_shape$lat <- point_bd[,2]
+
+
+datck_json <- list(dataArray = id_region_shape %>% 
+                     select(count, lat, lng))
+datck_json <- toJSON(datck_json, auto_unbox = T, pretty = F)
+datck_json <- str_replace_all(datck_json, "\\},\\{", "\\},\n\\{")
+cat(datck_json, file = "test.json")
