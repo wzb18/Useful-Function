@@ -4,6 +4,7 @@ library(dplyr)
 library(stringr)
 library(jsonlite)
 
+### 少用，有被封ip的可能性
 key = "your amap key"
 keyword = "静安新城10区"
 test <- paste0('https://restapi.amap.com/v3/place/text?key=', key,'&keywords=',keyword,
